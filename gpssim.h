@@ -12,7 +12,7 @@
 /*! \brief Maximum number of satellites in RINEX file */
 #define MAX_SAT (32)
 
-/*! \brief Maximum number of channels we simulate */
+/*! \brief Maximum number of channels we simulate, can be overwritten at runtime with -C argument. */
 #define MAX_CHAN (16)
 
 /*! \brief Maximum number of user motion points */

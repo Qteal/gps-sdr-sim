@@ -1569,7 +1569,7 @@ int checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elvMask, do
 	return (0); // Invisible
 }
 
-int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc, gpstime_t grx, double *xyz, double elvMask)
+int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc, gpstime_t grx, double *xyz, double elvMask, int max_chan)
 {
 	int nsat=0;
 	int i,sv;
@@ -1589,7 +1589,7 @@ int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc, gpstime_t 
 			if (allocatedSat[sv]==-1) // Visible but not allocated
 			{
 				// Allocated new satellite
-				for (i=0; i<MAX_CHAN; i++)
+				for (i=0; i<max_chan; i++)
 				{
 					if (chan[i].prn==0)
 					{
@@ -1630,7 +1630,7 @@ int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc, gpstime_t 
 				}
 
 				// Set satellite allocation channel
-				if (i<MAX_CHAN)
+				if (i<max_chan)
 					allocatedSat[sv] = i;
 			}
 		}
@@ -1662,6 +1662,7 @@ void usage(void)
 		"  -o <output>      I/Q sampling data file (default: gpssim.bin)\n"
 		"  -s <frequency>   Sampling frequency [Hz] (default: 2600000)\n"
 		"  -b <iq_bits>     I/Q data format [1/8/16] (default: 16)\n"
+		"  -C <channels>    Maximum number of simulated channels (default & maximum: 16)\n"
 		"  -i               Disable ionospheric delay for spacecraft scenario\n"
 		"  -v               Show details about simulated channels\n",
 		((double)USER_MOTION_SIZE) / 10.0, STATIC_MAX_DURATION);
@@ -1726,6 +1727,7 @@ int main(int argc, char *argv[])
 	double duration;
 	int iduration;
 	int verb;
+	int max_chan = MAX_CHAN;
 
 	int timeoverwrite = FALSE; // Overwirte the TOC and TOE in the RINEX file
 
@@ -1753,7 +1755,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	while ((result=getopt(argc,argv,"e:u:g:c:l:o:s:b:T:t:d:iv"))!=-1)
+	while ((result=getopt(argc,argv,"e:u:g:c:l:o:s:b:T:t:d:C:iv"))!=-1)
 	{
 		switch (result)
 		{
@@ -1836,6 +1838,14 @@ int main(int argc, char *argv[])
 		case 'd':
 			duration = atof(optarg);
 			break;
+		case 'C':
+            max_chan = atoi(optarg);
+            if (max_chan<1 || max_chan>MAX_CHAN)
+            {
+                fprintf(stderr, "ERROR: Invalid max channels.\n");
+                exit(1);
+            }
+            break;
 		case 'i':
 			ionoutc.enable = FALSE; // Disable ionospheric correction
 			break;
@@ -2110,7 +2120,7 @@ int main(int argc, char *argv[])
 	////////////////////////////////////////////////////////////
 
 	// Clear all channels
-	for (i=0; i<MAX_CHAN; i++)
+	for (i=0; i<max_chan; i++)
 		chan[i].prn = 0;
 
 	// Clear satellite allocation flag
@@ -2121,9 +2131,9 @@ int main(int argc, char *argv[])
 	grx = incGpsTime(g0, 0.0);
 
 	// Allocate visible satellites
-	allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask);
+	allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask, max_chan);
 
-	for(i=0; i<MAX_CHAN; i++)
+	for(i=0; i<max_chan; i++)
 	{
 		if (chan[i].prn>0)
 			fprintf(stderr, "%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn, 
@@ -2148,7 +2158,7 @@ int main(int argc, char *argv[])
 
 	for (iumd=1; iumd<numd; iumd++)
 	{
-		for (i=0; i<MAX_CHAN; i++)
+		for (i=0; i<max_chan; i++)
 		{
 			if (chan[i].prn>0)
 			{
@@ -2187,7 +2197,7 @@ int main(int argc, char *argv[])
 			int i_acc = 0;
 			int q_acc = 0;
 
-			for (i=0; i<MAX_CHAN; i++)
+			for (i=0; i<max_chan; i++)
 			{
 				if (chan[i].prn>0)
 				{
@@ -2291,7 +2301,7 @@ int main(int argc, char *argv[])
 		if (igrx%300==0) // Every 30 seconds
 		{
 			// Update navigation message
-			for (i=0; i<MAX_CHAN; i++)
+			for (i=0; i<max_chan; i++)
 			{
 				if (chan[i].prn>0)
 					generateNavMsg(grx, &chan[i], 0);
@@ -2308,7 +2318,7 @@ int main(int argc, char *argv[])
 					{
 						ieph++;
 
-						for (i=0; i<MAX_CHAN; i++)
+						for (i=0; i<max_chan; i++)
 						{
 							// Generate new subframes if allocated
 							if (chan[i].prn!=0) 
@@ -2322,15 +2332,15 @@ int main(int argc, char *argv[])
 
 			// Update channel allocation
 			if (!staticLocationMode)
-				allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[iumd], elvmask);
+				allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[iumd], elvmask, max_chan);
 			else
-				allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask);
+				allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask, max_chan);
 
 			// Show ditails about simulated channels
 			if (verb==TRUE)
 			{
 				fprintf(stderr, "\n");
-				for (i=0; i<MAX_CHAN; i++)
+				for (i=0; i<max_chan; i++)
 				{
 					if (chan[i].prn>0)
 						fprintf(stderr, "%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn,
