@@ -2120,7 +2120,7 @@ int main(int argc, char *argv[])
 	////////////////////////////////////////////////////////////
 
 	// Clear all channels
-	for (i=0; i<max_chan; i++)
+	for (i=0; i<MAX_CHAN; i++)
 		chan[i].prn = 0;
 
 	// Clear satellite allocation flag
